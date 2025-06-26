@@ -46,9 +46,9 @@ public class JwtSecurityFilter extends OncePerRequestFilter {
             @NotNull FilterChain filterChain) throws ServletException, IOException {
 
         String authHeader = request.getHeader("authorization");
-        if (authHeader != null && !authHeader.isEmpty()) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")){
             String token = authHeader.substring(7);
-            if (isTokenBlacklisted(token)) {
+            if (!isTokenBlacklisted(token)) {
                 try {
                     SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
                     Jws<Claims> jws = Jwts.parser()
@@ -60,15 +60,15 @@ public class JwtSecurityFilter extends OncePerRequestFilter {
                     String role = claims.get("role", String.class);
 
                     if (!email.isEmpty()){
-                        if (role == null || role.isEmpty()){
-                            response.sendError(HttpServletResponse.SC_NOT_FOUND,"Role is not found"); return;
+                        if (role == null || role.trim().isEmpty()){
+                            response.sendError(HttpServletResponse.SC_NOT_FOUND,"Role is missing");
                         }
-                        UsernamePasswordAuthenticationToken authorization = new UsernamePasswordAuthenticationToken(
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 new User(email,"", Collections.singletonList(new SimpleGrantedAuthority("ROLE_"+role))),
                                 null,
                                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_"+role))
                         );
-                        SecurityContextHolder.getContext().setAuthentication(authorization);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
                 } catch (Exception e) {
                     SecurityContextHolder.clearContext();
