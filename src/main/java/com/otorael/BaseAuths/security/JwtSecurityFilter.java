@@ -37,7 +37,7 @@ public class JwtSecurityFilter extends OncePerRequestFilter {
     }
 
     public boolean isTokenBlacklisted (String token){
-        return JWT_BLACKLIST_TOKEN.contains(token);
+        return !JWT_BLACKLIST_TOKEN.contains(token);
     }
     @Override
     protected void doFilterInternal(
@@ -48,7 +48,7 @@ public class JwtSecurityFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")){
             String token = authHeader.substring(7);
-            if (!isTokenBlacklisted(token)) {
+            if (isTokenBlacklisted(token)) {
                 try {
                     SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
                     Jws<Claims> jws = Jwts.parser()

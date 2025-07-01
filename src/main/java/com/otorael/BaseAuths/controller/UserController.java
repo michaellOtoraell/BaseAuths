@@ -44,7 +44,7 @@ public class UserController {
         try {
             String authHeader = request.getHeader("authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                if (!jwtSecurityFilter.isTokenBlacklisted(token)){
+                if (jwtSecurityFilter.isTokenBlacklisted(token)){
                     String email = jwtUtility.getUserEmail(authHeader.substring(7));
 
                     log.info("Initializing the request to check for all the users in the database");

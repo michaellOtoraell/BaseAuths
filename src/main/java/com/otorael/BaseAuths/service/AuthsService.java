@@ -14,12 +14,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -35,6 +38,12 @@ public class AuthsService implements AuthsServiceImpl {
 
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.login.max-attempts}")
+    private int maxLoginAttempts;
+
+    @Value("${app.login.lock-time-minutes}")
+    private int lockTimeMinutes;
+
     public AuthsService(AuthEventProducer authEventProducer, JwtUtility jwtUtility, AuthsRepository authsRepository, PasswordEncoder passwordEncoder) {
         this.authEventProducer = authEventProducer;
         this.jwtUtility = jwtUtility;
@@ -45,39 +54,80 @@ public class AuthsService implements AuthsServiceImpl {
     @Override
     public ResponseEntity<?> login(UserLogin login) {
         try {
-            Optional<Auths> loginAttempt = authsRepository.findByEmail(login.getEmail());
-            if (loginAttempt.isPresent()) {
-                if (passwordEncoder.matches(login.getPassword(), loginAttempt.get().getPassword())){
-                    String token = jwtUtility.generateToken(loginAttempt);
-                    //Sending Kafka Auths topic
-                    log.info("Sending Kafka Auths topic ...");
-
-                    UserDetails userDetails = new UserDetails(
-                            "success",
-                            "User logged in successfully",
-                            loginAttempt.get().getFirstName(),
-                            loginAttempt.get().getLastName(),
-                            loginAttempt.get().getEmail(),
-                            loginAttempt.get().getRole(),
-                            token,
-                            Instant.now().toString()
-                    );
-                    authEventProducer.sendAuthEvent(userDetails);
-
-                    log.info("User logged in successfully");
-                    return ResponseEntity.status(HttpStatus.OK).body(
-                            new UserDetails("success","User logged in successfully",loginAttempt.get().getFirstName(),loginAttempt.get().getLastName(),loginAttempt.get().getEmail(),loginAttempt.get().getRole(),token,""+ Instant.now())
-                    );
-                }
-                log.error("There was an error, Error: Incorrect password");
+            Optional<Auths> userOptional = authsRepository.findByEmail(login.getEmail());
+            if (userOptional.isEmpty()) {
+                log.error("There was an error, Error: Email not found");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                        new CustomResponse("failed","Incorrect password",""+Instant.now())
+                        new CustomResponse("failed","An Email "+login.getEmail()+" is not found",""+Instant.now())
                 );
             }
-            log.error("There was an error, Error: Email not found");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    new CustomResponse("failed","An Email "+login.getEmail()+" is not found",""+Instant.now())
-            );
+            Auths user = userOptional.get();
+
+            // Check if account is locked
+            if (user.getAccountLockedUntil() != null) {
+                if (LocalDateTime.now().isBefore(user.getAccountLockedUntil())) {
+                    Duration remainingTime = Duration.between(LocalDateTime.now(), user.getAccountLockedUntil());
+                    long remainingMinutes = remainingTime.toMinutes();
+                    log.error("Account is locked. Try again in {} minutes", remainingMinutes);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                            new CustomResponse("failed","Account is locked. Try again in " + remainingMinutes + " minutes",""+Instant.now())
+                    );
+                } else {
+                    // Lock has expired, reset the account
+                    user.setFailedLoginAttempts(0);
+                    user.setAccountLockedUntil(null);
+                    authsRepository.save(user);
+                }
+            }
+
+            if (passwordEncoder.matches(login.getPassword(), user.getPassword())) {
+                // Successful login - reset attempts
+                user.setFailedLoginAttempts(0);
+                user.setAccountLockedUntil(null);
+                user.setLastFailedLogin(null);
+                authsRepository.save(user);
+
+                String token = jwtUtility.generateToken(userOptional);
+
+                //Sending Kafka Auths topic
+                log.info("Sending Kafka Auths topic ...");
+
+                UserDetails userDetails = new UserDetails(
+                        "success",
+                        "User logged in successfully",
+                        user.getFirstName(),
+                        user.getLastName(),
+                        user.getEmail(),
+                        user.getRole(),
+                        token,
+                        Instant.now().toString()
+                );
+                authEventProducer.sendAuthEvent(userDetails);
+
+                log.info("User logged in successfully");
+                return ResponseEntity.status(HttpStatus.OK).body(
+                        new UserDetails("success","User logged in successfully",user.getFirstName(),user.getLastName(),user.getEmail(),user.getRole(),token,""+ Instant.now())
+                );
+            } else {
+                // Failed login - increment attempts and update last failed login
+                user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
+                user.setLastFailedLogin(LocalDateTime.now());
+
+                if (user.getFailedLoginAttempts() >= maxLoginAttempts) {
+                    user.setAccountLockedUntil(LocalDateTime.now().plusMinutes(lockTimeMinutes));
+                    log.error("Account locked due to too many failed attempts");
+                    authsRepository.save(user);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                            new CustomResponse("failed","Account locked due to too many failed attempts. Try again in " + lockTimeMinutes + " minutes",""+Instant.now())
+                    );
+                }
+                authsRepository.save(user);
+
+                log.error("There was an error, Error: Incorrect password");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                        new CustomResponse("failed","Incorrect password. " + (maxLoginAttempts - user.getFailedLoginAttempts()) + " attempts remaining",""+Instant.now())
+                );
+            }
 
         } catch (Exception e) {
             log.error("There was an error during login, Error: {}",e.getMessage());
