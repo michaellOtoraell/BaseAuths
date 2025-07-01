@@ -62,7 +62,6 @@ public class AuthsService implements AuthsServiceImpl {
                 );
             }
             Auths user = userOptional.get();
-
             // Check if account is locked
             if (user.getAccountLockedUntil() != null) {
                 if (LocalDateTime.now().isBefore(user.getAccountLockedUntil())) {
