@@ -211,14 +211,32 @@ public class AuthsService implements AuthsServiceImpl {
         try {
             Optional<Auths> userOptional = authsRepository.findByEmail(forgotPassword.getEmail());
 
+            // Check if email exists or not
             if (userOptional.isEmpty()) {
-                log.error("Forgot password failed: Email {} not found", forgotPassword.getEmail());
+                log.warn("Password reset requested for non-existent email: {}", forgotPassword.getEmail());
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                        new CustomResponse("failure","Email, "+forgotPassword.getEmail()+" not registered",formattedDate().formatted())
+                        new CustomResponse("failed", "Email not found in our records", formattedDate().formatted())
                 );
             }
 
             Auths user = userOptional.get();
+
+            // Check if account is locked
+            if (user.getAccountLockedUntil() != null) {
+                if (LocalDateTime.now().isBefore(user.getAccountLockedUntil())) {
+                    Duration remainingTime = Duration.between(LocalDateTime.now(), user.getAccountLockedUntil());
+                    long remainingMinutes = remainingTime.toMinutes();
+                    log.error("This account is locked, try again in {} minutes to reset password", remainingMinutes);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                            new CustomResponse("failed","This account is locked. Try again in " + remainingMinutes + " minutes to reset a password",formattedDate().formatted())
+                    );
+                } else {
+                    // Lock has expired, reset the account
+                    user.setFailedLoginAttempts(0);
+                    user.setAccountLockedUntil(null);
+                    authsRepository.save(user);
+                }
+            }
 
             // Generate 8 random CHARACTERS as reset token
             //String resetToken = String.format("%06d", new java.util.Random().nextInt(1000000));
