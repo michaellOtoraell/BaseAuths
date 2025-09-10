@@ -58,6 +58,12 @@ public class Auths implements UserDetails {
     @Column(name = "last_failed_login")
     private LocalDateTime lastFailedLogin;
 
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expiry")
+    private LocalDateTime resetTokenExpiry;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singletonList(new SimpleGrantedAuthority("ROLE_"+role.name()));
