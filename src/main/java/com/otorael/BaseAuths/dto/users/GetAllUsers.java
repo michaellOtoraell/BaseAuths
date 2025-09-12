@@ -1,6 +1,4 @@
-package com.otorael.BaseAuths.dto;
-
-import com.otorael.BaseAuths.model.Auths;
+package com.otorael.BaseAuths.dto.users;
 
 import java.util.List;
 
@@ -14,11 +12,11 @@ public class GetAllUsers {
     public GetAllUsers() {
     }
 
-    public GetAllUsers(String notification, String message, String timestamp, List<MultiUsersDto> userDetails) {
+    public GetAllUsers(String notification, String message, List<MultiUsersDto> userDetails, String timestamp) {
         this.notification = notification;
         this.message = message;
-        this.timestamp = timestamp;
         this.userDetails = userDetails;
+        this.timestamp = timestamp;
     }
 
     public String getNotification() {

@@ -1,6 +1,6 @@
 package com.otorael.BaseAuths.kafka;
 
-import com.otorael.BaseAuths.dto.UserDetails;
+import com.otorael.BaseAuths.dto.users.UserDetails;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 

@@ -1,4 +1,4 @@
-package com.otorael.BaseAuths.dto;
+package com.otorael.BaseAuths.dto.responses;
 
 public class CustomResponse {
     private String notification;

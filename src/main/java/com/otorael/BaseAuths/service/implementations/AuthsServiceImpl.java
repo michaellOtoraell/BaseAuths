@@ -1,9 +1,9 @@
 package com.otorael.BaseAuths.service.implementations;
 
-import com.otorael.BaseAuths.dto.ForgotPassword;
-import com.otorael.BaseAuths.dto.ResetPassword;
-import com.otorael.BaseAuths.dto.UserRegister;
-import com.otorael.BaseAuths.dto.UserLogin;
+import com.otorael.BaseAuths.dto.passwords.ForgotPassword;
+import com.otorael.BaseAuths.dto.passwords.ResetPassword;
+import com.otorael.BaseAuths.dto.auths.UserRegister;
+import com.otorael.BaseAuths.dto.auths.UserLogin;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 

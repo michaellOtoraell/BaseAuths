@@ -1,6 +1,10 @@
 package com.otorael.BaseAuths.controller;
 
-import com.otorael.BaseAuths.dto.*;
+import com.otorael.BaseAuths.dto.auths.UserLogin;
+import com.otorael.BaseAuths.dto.auths.UserRegister;
+import com.otorael.BaseAuths.dto.passwords.ForgotPassword;
+import com.otorael.BaseAuths.dto.passwords.ResetPassword;
+import com.otorael.BaseAuths.dto.responses.CustomResponse;
 import com.otorael.BaseAuths.service.AuthsService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.jetbrains.annotations.NotNull;

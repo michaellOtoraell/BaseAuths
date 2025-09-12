@@ -1,11 +1,19 @@
 package com.otorael.BaseAuths.service;
 
-import com.otorael.BaseAuths.dto.*;
+import com.otorael.BaseAuths.dto.auths.UserLogin;
+import com.otorael.BaseAuths.dto.auths.UserRegister;
+import com.otorael.BaseAuths.dto.passwords.ForgotPassword;
+import com.otorael.BaseAuths.dto.passwords.PasswordResponse;
+import com.otorael.BaseAuths.dto.passwords.ResetPassword;
+import com.otorael.BaseAuths.dto.passwords.WrongPasswordResp;
+import com.otorael.BaseAuths.dto.responses.CustomResponse;
+import com.otorael.BaseAuths.dto.users.UserDetails;
 import com.otorael.BaseAuths.kafka.AuthEventProducer;
 import com.otorael.BaseAuths.security.JwtUtility;
 import com.otorael.BaseAuths.model.Auths;
 import com.otorael.BaseAuths.repository.AuthsRepository;
 import com.otorael.BaseAuths.security.JwtSecurityFilter;
+import com.otorael.BaseAuths.security.PasswordValidator.PasswordValidator;
 import com.otorael.BaseAuths.service.NotificationService.EmailMessaging;
 import com.otorael.BaseAuths.service.implementations.AuthsServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
@@ -166,6 +174,15 @@ public class AuthsService implements AuthsServiceImpl {
                 auths.setFirstName(register.getFirstName());
                 auths.setLastName(register.getLastName());
                 auths.setEmail(register.getEmail());
+
+                if (!PasswordValidator.isValid(register.getPassword(), register.getEmail(), register.getFirstName(), register.getLastName())) {
+                    //throw new IllegalArgumentException("Password does not meet security requirements");
+                    PasswordResponse passwordResponse = new PasswordResponse();
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                            new WrongPasswordResp("failure","Password does not meet security requirements",passwordResponse,formattedDate().formatted())
+                    );
+                }
+
                 auths.setPassword(passwordEncoder.encode(register.getPassword()));
                 auths.setRole(register.getRole());
                 //save a new user
@@ -297,6 +314,13 @@ public class AuthsService implements AuthsServiceImpl {
             }
 
             // Update password
+            if (!PasswordValidator.isValid(resetPassword.getNewPassword(), user.getEmail(), user.getFirstName(), user.getLastName())) {
+                //throw new IllegalArgumentException("Password does not meet security requirements");
+                PasswordResponse passwordResponse = new PasswordResponse();
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                        new WrongPasswordResp("failure","Password does not meet security requirements",passwordResponse,formattedDate().formatted())
+                );
+            }
             user.setPassword(passwordEncoder.encode(resetPassword.getNewPassword()));
 
             // Clear token and expiry after successful reset

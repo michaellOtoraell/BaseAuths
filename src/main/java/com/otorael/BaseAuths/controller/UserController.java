@@ -1,13 +1,15 @@
 package com.otorael.BaseAuths.controller;
 
-import com.otorael.BaseAuths.dto.CustomResponse;
-import com.otorael.BaseAuths.dto.GetAllUsers;
-import com.otorael.BaseAuths.dto.MultiUsersDto;
+import com.otorael.BaseAuths.dto.responses.CustomResponse;
+import com.otorael.BaseAuths.dto.responses.FailureResponse;
+import com.otorael.BaseAuths.dto.users.GetAllUsers;
+import com.otorael.BaseAuths.dto.users.MultiUsersDto;
 import com.otorael.BaseAuths.model.Auths;
 import com.otorael.BaseAuths.repository.AuthsRepository;
 import com.otorael.BaseAuths.security.JwtSecurityFilter;
 import com.otorael.BaseAuths.security.JwtUtility;
 import jakarta.servlet.http.HttpServletRequest;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +42,12 @@ public class UserController {
         this.jwtUtility = jwtUtility;
         this.authsRepository = authsRepository;
     }
+    private @NotNull String formattedDate(){
+        String formattedDate = DateTimeFormatter.ofPattern("yyyy-MM-dd 'at' HH:mm:ss")
+                .withZone(ZoneId.systemDefault())
+                .format(Instant.now());
+        return formattedDate;
+    }
 
     @RequestMapping(value = "/api/v1/private/get-users", method = RequestMethod.GET)
     public ResponseEntity<?> getAllUsers(String token, HttpServletRequest request) {
@@ -57,7 +67,6 @@ public class UserController {
                         userDetails.setLastName(auth.getLastName());
                         userDetails.setEmail(auth.getEmail());
                         userDetails.setRole(auth.getRole());
-                        // Leave other fields (notification, message, token, timestamp) as null/default
                         userDetailsList.add(userDetails);
                     }
                     log.info("All users retrieved successfully, by {} ",email);
@@ -65,26 +74,21 @@ public class UserController {
                             new GetAllUsers(
                                     "success",
                                     "All users retrieved successfully",
-                                    "Date :"+Instant.now().toString().trim().substring(0,10)+" time: "+Instant.now().toString().trim().substring(11,19),
-                                    userDetailsList
+                                    userDetailsList,
+                                    "Date :"+Instant.now().toString().trim().substring(0,10)+" time: "+Instant.now().toString().trim().substring(11,19)
                             )
                     );
                 }
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                        new CustomResponse("failed","Token is not valid",""+Instant.now())
+                        new CustomResponse("failed","Token is not valid",formattedDate().formatted())
                 );
             }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    new CustomResponse("failed","Token is null or missing",""+Instant.now())
+                    new CustomResponse("failed","Token is null or missing",formattedDate().formatted())
             );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    new GetAllUsers(
-                            "failed",
-                            "Failed to retrieve users: " + e.getMessage(),
-                            Instant.now().toString().trim().substring(0,11),
-                            Collections.emptyList()
-                    )
+                    new FailureResponse()
             );
         }
     }

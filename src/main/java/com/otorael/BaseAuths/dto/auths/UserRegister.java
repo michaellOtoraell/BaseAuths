@@ -1,4 +1,4 @@
-package com.otorael.BaseAuths.dto;
+package com.otorael.BaseAuths.dto.auths;
 
 import com.otorael.BaseAuths.model.Role;
 

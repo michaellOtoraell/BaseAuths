@@ -46,6 +46,8 @@ public class JwtSecurityFilter extends OncePerRequestFilter {
             @NotNull FilterChain filterChain) throws ServletException, IOException {
 
         String authHeader = request.getHeader("authorization");
+        System.out.println(">>> RAW HEADER: [" + authHeader + "]");
+
         if (authHeader != null && authHeader.startsWith("Bearer ")){
             String token = authHeader.substring(7);
             if (isTokenBlacklisted(token)) {
